@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库格式化助手</title>
+    <!-- mammoth.js：用于解析 .docx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- html-docx-js：用于生成 .docx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Card */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* API Key Section */
+        .api-key-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .api-key-row input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .api-key-row input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover {
+            background: #f1f5f9;
+        }
+        .btn-danger {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        .btn-danger:hover {
+            background: #fef2f2;
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #16a34a;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+        .hint a {
+            color: var(--primary);
+        }
+
+        /* Textarea */
+        textarea {
+            width: 100%;
+            min-height: 220px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            line-height: 1.7;
+        }
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .textarea-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .char-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .char-count.warning {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        /* Output */
+        .output-area {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 18px;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            min-height: 150px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .output-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* History */
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .history-item:hover {
+            background: #f8fafc;
+        }
+        .history-item .time {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .history-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .history-actions button {
+            font-size: 12px;
+            padding: 4px 10px;
+        }
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 30px;
+            font-size: 14px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.7s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Modal for large text warning */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 998;
+        }
+        .modal {
+            background: #fff;
+            padding: 28px;
+            border-radius: var(--radius);
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        .modal p {
+            margin-bottom: 18px;
+            color: var(--text);
+        }
+        .modal .btn {
+            margin: 0 6px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px 12px;
+            }
+            .card {
+                padding: 16px;
+            }
+            textarea {
+                min-height: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📚 题库格式化助手</h1>
+            <p>粘贴混乱题目 → 一键转为标准格式</p>
+        </div>
+
+        <!-- API Key 配置 -->
+        <div class="card">
+            <div class="card-title">⚙️ API Key 配置</div>
+            <div class="api-key-row">
+                <input type="password" id="apiKeyInput" placeholder="请输入你的 API Key（sk-...）">
+                <button class="btn btn-outline" id="saveKeyBtn">💾 保存</button>
+                <button class="btn btn-danger" id="clearKeyBtn">🗑 清除</button>
+            </div>
+            <p class="hint">
+                💡 你的 Key 仅保存在浏览器本地（localStorage），不会被上传到任何服务器。
+                如何获取 Key？<a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">DeepSeek 控制台</a>
+            </p>
+            <p class="hint" style="margin-top:4px;">
+                📌 默认使用 <strong>DeepSeek Chat</strong> 模型，接口地址可在代码中修改。
+            </p>
+        </div>
+
+        <!-- 输入区 -->
+        <div class="card">
+            <div class="card-title">📝 输入题目</div>
+            <textarea id="inputTextarea" placeholder="在此粘贴题目文本，或点击下方上传 Word 文档...&#10;&#10;支持各种格式：纯文本、Word复制内容等"></textarea>
+            <div class="textarea-footer">
+                <div>
+                    <button class="btn btn-outline" id="uploadDocxBtn">📎 上传 Word 文档（.docx）</button>
+                    <input type="file" id="fileInput" accept=".docx" class="hidden">
+                </div>
+                <span class="char-count" id="charCount">已输入 0 字符</span>
+            </div>
+            <div style="margin-top:14px;">
+                <button class="btn btn-primary" id="formatBtn" style="font-size:15px; padding:12px 24px;">
+                    🚀 开始格式化
+                </button>
+            </div>
+        </div>
+
+        <!-- 结果区 -->
+        <div class="card" id="resultCard">
+            <div class="card-title">📋 格式化结果</div>
+            <div class="output-area" id="outputArea">等待格式化...</div>
+            <div class="output-actions">
+                <button class="btn btn-success" id="copyBtn">📋 一键复制</button>
+                <button class="btn btn-outline" id="downloadBtn">📥 下载 Word（.docx）</button>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="card">
+            <div class="card-title" style="justify-content:space-between;">
+                <span>🕘 历史记录</span>
+                <button class="btn btn-danger" id="clearHistoryBtn" style="font-size:12px; padding:6px 12px;">清空全部</button>
+            </div>
+            <div id="historyList">
+                <div class="empty-state">暂无历史记录</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 大文本确认弹窗 -->
+    <div class="modal-overlay hidden" id="confirmModal">
+        <div class="modal">
+            <p>⚠️ 输入文本超过 <strong>15000</strong> 字符，题目过多可能影响格式化质量，建议分批处理。</p>
+            <p style="font-size:13px;color:var(--text-secondary);">是否仍要继续？</p>
+            <button class="btn btn-primary" id="confirmYesBtn">继续</button>
+            <button class="btn btn-outline" id="confirmNoBtn">取消</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ============ 配置 ============
+            const API_BASE_URL = 'https://api.deepseek.com/v1/chat/completions'; // 可换成其他兼容 OpenAI 格式的接口
+            const MODEL_NAME = 'deepseek-chat';
+            const MAX_FILE_SIZE_MB = 5;
+            const MAX_CHAR_SOFT_LIMIT = 15000;
+            const MAX_HISTORY = 20;
+
+            // ============ 《题库格式规范》—— 作为 System Prompt ============
+            const SYSTEM_PROMPT = `你现在是一个专业的题库格式化助手。请严格按照以下所有要求，将我提供的任意题目内容转换为统一的题库文档格式。只输出最终转换结果，不加任何开场白或解释。
+
+        ## 一、整体结构要求
+        1. 每道题目为一个独立区块，题目之间用空行分隔。
+        2. 所有标记（题型、类型、难度、标签、知识点）都必须用方括号 [ ] 括起来，放在题干上方（可单独一行）。
+        3. 题型为必填，每道题都需要有题型标记。但如果连续多道题题型相同，只需在第一道题标注题型，后续题目可省略题型标记；一旦题型改变，必须在改变后的第一道题上重新标注新题型。
+        4. 题干必须另起一行，不能和题型、难度等标记挤在同一行。
+        5. 选项（如果有）跟在题干下一行，每个选项单独一行，或支持横向展示（如 A.xxx B.xxx C.xxx D.xxx），选项标识支持 A. / A、 / A 等形式，选项之间用空格分隔。
+        6. 答案解析（如果有）放在答案之后，另起一行，用"[答案解析]"或"解析："开头。
+
+        ## 二、非必填标记规则（可选，但如果给出请按规则处理）
+        1. 类型标记：[练习]、[考试]、[阶段训练] 等，可组合如 [练习;考试]。仅需在第一题标出，后续未标记的题目会默认继承上一题的类型。
+        2. 难度标记：[难度1](简单)、[难度2](适中)、[难度3](困难)。同样仅需在第一题标出，后续未标记默认继承上一题难度。
+        3. 标签标记：[标签#标签名1;标签名2]。非必填，出现时放在题型标记附近。
+        4. 知识点标记：[知识点#知识点1;知识点2]。非必填，出现时放在题型标记附近。
+        5. 以上可选项若用户输入中没有体现，可以不输出，或使用默认（类型默认[练习;考试]，难度默认[难度2]）。
+
+        ## 三、各类题型的答案格式（必须严格遵守）
+        ### 1. 单选题、多选题
+        - 单选题：在题干末尾或另起一行用括号标注答案，答案只能为单个英文字母，如（A）。多选题答案用至少两个英文字母，如（ABD），字母间无空格。
+        - 如果题干后没有直接括号答案，可另起一行用"答案："或"参考答案："标明，如"答案：A"。选项内容不可重复。
+
+        ### 2. 判断题
+        - 答案支持：对/错、正确/错误、T/F、True/False。
+        - 在题干末尾用括号标出，如"题干。（对）"，或另起一行用"答案：对"标明。
+
+        ### 3. 填空客观题
+        - 题干中需填空的位置用 {答案} 标出，{ } 内直接填写正确答案文本。
+        - 一个空格有多个正确答案用分号分隔，如 {李白;白居易}。
+        - 不支持公式、图片，只支持纯文本。
+
+        ### 4. 填空主观题
+        - 格式同填空客观题，{ } 内填写预设的参考答案（供老师批阅参考），如 {参考答案文本}。
+
+        ### 5. 问答题、名词解释、证明/计算/分析题、翻译题、写作题
+        - 题干单独一行。
+        - 答案另起一行，用"[参考答案]"或"参考答案："引出具体内容。翻译题和写作题需要给出完整译文或范文。
+
+        ### 6. 阅读理解、组合题
+        - 必须有子试题。
+        - 第一行：若有主题干则写出主题干（阅读理解必填主题干，组合题非必填），主题干后可有"[答案解析]"块（整个题型仅一个解析块，放在所有子题之前）。
+        - 子试题要求：每个子题另起一行，题型用"#"标注，如 [#单选题]、[#多选题]、[#判断题]、[#填空主观题]、[#问答题]。子题答案格式与独立题目完全一致。
+        - 若连续子题题型相同，后面的可省略"#题型"标注，仅保持内容格式。
+
+        ### 7. 客观选答题、主观选答题（如果有这种组合结构）
+        - 处理逻辑同组合题，只是子题类型受限，按规定支持即可。
+
+        ### 8. 听力题
+        - 题型标记为 [听力题]，按对应题型规则处理答案（音频在导入后再处理，文本输出时只按题型生成题目和答案）。
+
+        ## 四、输出示例（请模仿以下格式）
+        [单选题][难度2][练习;考试]
+        全球范围内儿童死亡的首位死因是（D）。
+        A.肺炎
+        B.癌症
+        C.脑炎
+        D.意外伤害
+
+        [多选题]
+        制约情绪的因素主要有（ABD）。
+        A.外部事件
+        B.生理状态
+        C.情绪的生理基础
+        D.认知过程
+
+        [判断题]
+        儿童意外伤害，重在发生的紧急抢救措施。（错）
+
+        [填空客观题]
+        19世纪初，拉丁美洲第一个宣布独立的国家是{海地}。
+
+        [问答题]
+        日本明治维新从哪年开始？主要内容有哪些？
+        [参考答案] 日本明治维新开始于1868年。主要内容有：政治方面，"废藩置县"，加强中央集权。
+
+        [阅读理解]
+        （此处为主题干文本……）
+        [答案解析] 这是解析内容。
+        [#单选题]
+        1. 题目内容（C）。
+        A.选项一
+        B.选项二
+        C.选项三
+        D.选项四
+        [#问答题]
+        2. 题目内容？
+        [参考答案] 这里是答案。
+
+        ## 五、最后强调
+        - 无论用户输入是什么形式的题目（纯文本、表格、含无关内容的杂乱文本），都要提取题目核心，严格按上述规范输出。
+        - 输出必须是纯文本，可直接复制到 docx 中保存，不要包含代码块标记。`;
+
+            // ============ DOM 元素 ============
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const saveKeyBtn = document.getElementById('saveKeyBtn');
+            const clearKeyBtn = document.getElementById('clearKeyBtn');
+            const inputTextarea = document.getElementById('inputTextarea');
+            const charCount = document.getElementById('charCount');
+            const formatBtn = document.getElementById('formatBtn');
+            const uploadDocxBtn = document.getElementById('uploadDocxBtn');
+            const fileInput = document.getElementById('fileInput');
+            const outputArea = document.getElementById('outputArea');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const historyList = document.getElementById('historyList');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+            const toast = document.getElementById('toast');
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmYesBtn = document.getElementById('confirmYesBtn');
+            const confirmNoBtn = document.getElementById('confirmNoBtn');
+
+            let pendingFormatCallback = null; // 存储待执行的格式化回调
+
+            // ============ Toast ============
+            let toastTimer;
+
+            function showToast(message) {
+                toast.textContent = message;
+                toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+            }
+
+            // ============ API Key 管理 ============
+            function loadApiKey() {
+                const key = localStorage.getItem('quiz_formatter_api_key') || '';
+                apiKeyInput.value = key;
+            }
+
+            function saveApiKey() {
+                const key = apiKeyInput.value.trim();
+                if (!key) {
+                    showToast('⚠️ 请输入 API Key');
+                    return;
+                }
+                localStorage.setItem('quiz_formatter_api_key', key);
+                showToast('✅ API Key 已保存到本地');
+            }
+
+            function clearApiKey() {
+                localStorage.removeItem('quiz_formatter_api_key');
+                apiKeyInput.value = '';
+                showToast('🗑 API Key 已清除');
+            }
+
+            saveKeyBtn.addEventListener('click', saveApiKey);
+            clearKeyBtn.addEventListener('click', clearApiKey);
+
+            // ============ 字符统计 ============
+            function updateCharCount() {
+                const len = inputTextarea.value.length;
+                charCount.textContent = `已输入 ${len} 字符`;
+                if (len > MAX_CHAR_SOFT_LIMIT) {
+                    charCount.classList.add('warning');
+                } else {
+                    charCount.classList.remove('warning');
+                }
+            }
+            inputTextarea.addEventListener('input', updateCharCount);
+
+            // ============ 上传 Word 文档 ============
+            uploadDocxBtn.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+
+                // 检查文件大小
+                if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                    showToast(`⚠️ 文件过大，请选择小于 ${MAX_FILE_SIZE_MB}MB 的文件`);
+                    fileInput.value = '';
+                    return;
+                }
+
+                // 检查文件类型
+                if (!file.name.toLowerCase().endsWith('.docx')) {
+                    showToast('⚠️ 请上传 .docx 格式的文件');
+                    fileInput.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                        .then(function(result) {
+                            inputTextarea.value = result.value;
+                            updateCharCount();
+                            showToast('✅ Word 文档解析成功！');
+                        })
+                        .catch(function(err) {
+                            console.error('Word 解析失败:', err);
+                            showToast('❌ Word 文档解析失败，请检查文件是否损坏');
+                        });
+                };
+                reader.onerror = function() {
+                    showToast('❌ 文件读取失败');
+                };
+                reader.readAsArrayBuffer(file);
+                // 重置 file input，允许重复上传同一文件
+                fileInput.value = '';
+            });
+
+            // ============ 大文本确认弹窗 ============
+            function showConfirmModal(callback) {
+                pendingFormatCallback = callback;
+                confirmModal.classList.remove('hidden');
+            }
+
+            function hideConfirmModal() {
+                confirmModal.classList.add('hidden');
+                pendingFormatCallback = null;
+            }
+
+            confirmYesBtn.addEventListener('click', function() {
+                hideConfirmModal();
+                if (pendingFormatCallback) pendingFormatCallback();
+            });
+
+            confirmNoBtn.addEventListener('click', hideConfirmModal);
+
+            // 点击遮罩关闭
+            confirmModal.addEventListener('click', function(e) {
+                if (e.target === confirmModal) hideConfirmModal();
+            });
+
+            // ============ 调用大模型 API ============
+            async function callAI(userInput) {
+                const apiKey = localStorage.getItem('quiz_formatter_api_key');
+                if (!apiKey) {
+                    showToast('⚠️ 请先配置 API Key');
+                    return null;
+                }
+
+                const response = await fetch(API_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: userInput }
+                        ],
+                        temperature: 0.1,
+                        max_tokens: 8000
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error?.message || `HTTP ${response.status}: 请求失败`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            // ============ 格式化主流程 ============
+            async function doFormat() {
+                const inputText = inputTextarea.value.trim();
+                if (!inputText) {
+                    showToast('⚠️ 请输入题目内容');
+                    return;
+                }
+
+                // 检查 API Key
+                const apiKey = localStorage.getItem('quiz_formatter_api_key');
+                if (!apiKey) {
+                    showToast('⚠️ 请先配置 API Key');
+                    return;
+                }
+
+                // 禁用按钮，显示加载状态
+                formatBtn.disabled = true;
+                formatBtn.innerHTML = '<span class="spinner"></span>格式化中...';
+                outputArea.textContent = '正在调用 AI 格式化，请稍候...';
+
+                try {
+                    const result = await callAI(inputText);
+                    if (result !== null) {
+                        outputArea.textContent = result;
+                        saveHistory(inputText, result);
+                        showToast('✅ 格式化完成！');
+                    } else {
+                        outputArea.textContent = '格式化失败，请重试。';
+                    }
+                } catch (error) {
+                    console.error('格式化出错:', error);
+                    outputArea.textContent = `❌ 出错：${error.message}`;
+                    showToast('❌ 格式化失败，请检查 API Key 和网络');
+                } finally {
+                    formatBtn.disabled = false;
+                    formatBtn.innerHTML = '🚀 开始格式化';
+                }
+            }
+
+            formatBtn.addEventListener('click', function() {
+                const inputText = inputTextarea.value.trim();
+                if (inputText.length > MAX_CHAR_SOFT_LIMIT) {
+                    // 超过软限制，弹出确认框
+                    showConfirmModal(doFormat);
+                } else {
+                    doFormat();
+                }
+            });
+
+            // ============ 复制功能 ============
+            copyBtn.addEventListener('click', function() {
+                const text = outputArea.textContent;
+                if (!text || text === '等待格式化...') {
+                    showToast('⚠️ 没有可复制的内容');
+                    return;
+                }
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('📋 已复制到剪贴板！');
+                }).catch(() => {
+                    // 降级方案
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('📋 已复制到剪贴板！');
+                });
+            });
+
+            // ============ 下载 Word ============
+            downloadBtn.addEventListener('click', function() {
+                const text = outputArea.textContent;
+                if (!text || text === '等待格式化...') {
+                    showToast('⚠️ 没有可下载的内容');
+                    return;
+                }
+                // 将纯文本转为 HTML 段落
+                const paragraphs = text.split('\n').map(line => {
+                    const escaped = line
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                    return `<p style="font-family: 'Courier New', monospace; font-size: 12pt; line-height: 1.8; margin: 2px 0; white-space: pre-wrap;">${escaped || '&nbsp;'}</p>`;
+                }).join('');
+                const htmlContent = `
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body>${paragraphs}</body>
+        </html>`;
+                const blob = htmlDocx.asBlob(htmlContent, {
+                    orientation: 'portrait',
+                    margins: { top: 720, bottom: 720, left: 720, right: 720 }
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `题库格式化_${new Date().toISOString().slice(0,10)}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('📥 下载成功！');
+            });
+
+            // ============ 历史记录 ============
+            function getHistory() {
+                try {
+                    const raw = localStorage.getItem('quiz_formatter_history');
+                    return raw ? JSON.parse(raw) : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function saveHistory(input, output) {
+                const history = getHistory();
+                // 只保存前 200 字符作为预览
+                history.unshift({
+                    time: new Date().toLocaleString('zh-CN'),
+                    inputPreview: input.slice(0, 200),
+                    output: output
+                });
+                // 限制数量
+                const trimmed = history.slice(0, MAX_HISTORY);
+                localStorage.setItem('quiz_formatter_history', JSON.stringify(trimmed));
+                renderHistory();
+            }
+
+            function clearHistory() {
+                localStorage.removeItem('quiz_formatter_history');
+                renderHistory();
+                showToast('🗑 历史记录已清空');
+            }
+
+            function renderHistory() {
+                const history = getHistory();
+                if (history.length === 0) {
+                    historyList.innerHTML = '<div class="empty-state">暂无历史记录</div>';
+                    return;
+                }
+                historyList.innerHTML = history.map((item, index) => `
+        <div class="history-item" data-index="${index}">
+        <div>
+        <div>📄 ${item.inputPreview}${item.inputPreview.length >= 200 ? '...' : ''}</div>
+        <div class="time">${item.time}</div>
+        </div>
+        <div class="history-actions">
+        <button class="btn btn-outline load-history-btn" data-index="${index}">📋 回填结果</button>
+        </div>
+        </div>
+        `).join('');
+
+                // 绑定回填按钮
+                document.querySelectorAll('.load-history-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const idx = parseInt(this.dataset.index);
+                        const history = getHistory();
+                        if (history[idx]) {
+                            outputArea.textContent = history[idx].output;
+                            showToast('📋 历史结果已加载到预览区');
+                        }
+                    });
+                });
+
+                // 点击整行也回填
+                document.querySelectorAll('.history-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const idx = parseInt(this.dataset.index);
+                        const history = getHistory();
+                        if (history[idx]) {
+                            outputArea.textContent = history[idx].output;
+                            showToast('📋 历史结果已加载到预览区');
+                        }
+                    });
+                });
+            }
+
+            clearHistoryBtn.addEventListener('click', clearHistory);
+
+            // ============ 初始化 ============
+            function init() {
+                loadApiKey();
+                updateCharCount();
+                renderHistory();
+            }
+
+            init();
+        })();
+    </script>
+</body>
+</html>
